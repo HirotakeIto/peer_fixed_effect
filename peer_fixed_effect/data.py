@@ -6,7 +6,7 @@ from sklearn.linear_model import LinearRegression
 
 class Data:
 
-    def __init__(self, x, y, group, ids, times):
+    def __init__(self, x, y, group, ids, times, seed=None):
         # data's parametor
         self.gamma = None
         self.num_time = None
@@ -22,12 +22,15 @@ class Data:
         self.alphait_qth_col = 'alphait_qth'
         self.alphai0_q_minus_1th_col = 'alphai0_q_minus_1th'
         self.mean_alphajt_ith_col = 'mean_alphajt_ith'
-        # util
-        self.LR = LinearRegression(fit_intercept=True)
         # setting
         self.df = self.create_data(x=x, y=y, group=group, ids=ids, times=times)
         self.set_initial_value()
         self.calc_data_value()
+        # util
+        self.LR = LinearRegression(fit_intercept=True)
+        # other setting
+        if seed:
+            np.random.seed(seed)
 
     def create_data(
             self,
@@ -66,7 +69,9 @@ class Data:
             .transform(lambda x: (x.sum() - x) / (x.count() - 1))
 
     def set_gamma(self):
-        self.LR.fit(y=self.df[self.y_col] - self.df[self.alphai0_q_minus_1th_col], X=self.df[[self.mean_alphajt_ith_col]])
+        self.LR.fit(
+            y=self.df[self.y_col] - self.df[self.alphai0_q_minus_1th_col],
+            X=self.df[[self.mean_alphajt_ith_col]])
         self.gamma = max(min(self.LR.coef_[0], 0.399), -0.399)
 
     def set_alphai0_qth(self):

@@ -6,12 +6,6 @@ from sklearn.linear_model import LinearRegression
 
 class Data:
 
-    # fixed effect
-    alphai0_qth_col = 'alphai0_qth'
-    alphait_qth_col = 'alphait_qth'
-    alphai0_q_minus_1th_col = 'alphai0_q_minus_1th'
-    mean_alphajt_ith_col = 'mean_alphajt_ith'
-
     def __init__(self, x, y, group, ids, times):
         # data's parametor
         self.gamma = None
@@ -22,11 +16,16 @@ class Data:
         self.time_col = 'time'
         self.y_col = 'yit'
         self.x_col_format = 'xit{i}'
-        self.x_col = []
-        self.df = self.create_data(x=x, y=y, group=group, ids=ids, times=times)
+        self.x_col = [self.x_col_format.format(i=i) for i in range(x.shape[1])]
+        # fixed effect columns
+        self.alphai0_qth_col = 'alphai0_qth'
+        self.alphait_qth_col = 'alphait_qth'
+        self.alphai0_q_minus_1th_col = 'alphai0_q_minus_1th'
+        self.mean_alphajt_ith_col = 'mean_alphajt_ith'
         # util
         self.LR = LinearRegression(fit_intercept=True)
         # setting
+        self.df = self.create_data(x=x, y=y, group=group, ids=ids, times=times)
         self.set_initial_value()
         self.calc_data_value()
 
@@ -37,14 +36,7 @@ class Data:
             group: np.array,
             ids: np.array,
             times: np.array):
-        columns = [
-            self.id_col,
-            self.group_col,
-            self.time_col,
-            self.y_col
-        ]
-        self.x_col = [self.x_col_format.format(i=i) for i in range(x.shape[1])]
-        columns += self.x_col
+        columns = [self.id_col, self.group_col, self.time_col, self.y_col] + self.x_col
         df = pd.DataFrame(np.c_[ids, group, times, y, x], columns=columns)
         return df
 

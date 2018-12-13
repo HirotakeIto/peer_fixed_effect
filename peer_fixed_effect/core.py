@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from sklearn.base import BaseEstimator
-from .data import Data
+from .structure import Structure
 
 
 class PeerFixedEffectRegression(BaseEstimator):
-    data_cls = Data
+    data_cls = Structure
 
     def __init__(self, effect='static', max_iteration=1000, seed=None):
         super().__init__()

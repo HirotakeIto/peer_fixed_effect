@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 
 
-class Data:
+class Structure:
 
     def __init__(self, x, y, group, ids, times, seed=None):
         # data's parametor
@@ -105,7 +105,8 @@ class Data:
 def debug():
     import pandas as pd
     df = pd.read_csv('memo/data/sample1/sample1.csv')
-    dt = Data(
+    df = pd.read_csv('memo/data/sample.csv')
+    dt = Structure(
         x=df[['xit0', 'xit1', 'xit2']].values,
         y=df['yit'].values,
         group=df['group'].values,

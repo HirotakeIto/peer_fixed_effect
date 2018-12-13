@@ -54,8 +54,8 @@ class Sample(MixinRandomSample):
         time_it = self.time_it(self.n_individual, self.n_time)
         x_it = self.x_it(self.n_individual, self.n_characteristics, self.n_time, **self.x_it_argv)
         fixed_effect_it = self.fixed_effect_it(self.n_individual, self.n_time, **self.fixed_effect_it_argv)
-        alpha_it0 = self.alpha_it0(x_it, self.beta1, fixed_effect_it, self.beta2)
-        alpha_jt0 = self.alpha_jt0(group_it, time_it, alpha_it0, rho0=self.rho0)
+        alpha_it0 = self.alpha_it(x_it, self.beta1, fixed_effect_it, self.beta2)
+        alpha_jt0 = self.alpha_jt(group_it, time_it, alpha_it0, rho0=self.rho0)
         resid_it = self.resid_it(self.n_individual, self.n_time, **self.resid_it_argv)
         yit = self.y_it(alpha_it0, alpha_jt0, resid_it)
         self.data = DataFrame(
@@ -83,14 +83,14 @@ class Sample(MixinRandomSample):
     def resid_it(self, n_individual, n_time, dist='standard', **argv):
         return self.sample(size=(n_individual * n_time, 1), dist=dist, **argv) * 0.01
 
-    def alpha_it0(self, x_it, beta1, fixed_effect_it, beta2):
+    def alpha_it(self, x_it, beta1, fixed_effect_it, beta2):
         return x_it.dot(beta1) + fixed_effect_it.dot(beta2)
 
-    def alpha_jt0(self, group_it, time_it, aplha_it0, rho0):
+    def alpha_jt(self, group_it, time_it, aplha_it0, rho0):
         df = DataFrame(c_[group_it, time_it, aplha_it0], columns=['group', 'time', 'alphait'])
         df['mean_alphajt'] = df.groupby(['group', 'time'])['alphait'].transform(
             lambda x: (x.sum() - x) / (x.count() - 1))
         return rho0 * df[['mean_alphajt']].values
 
-    def y_it(self, aplha_it0, aplha_jt0, resid_it):
-        return aplha_it0 + aplha_jt0 + resid_it
+    def y_it(self, aplha_it, aplha_jt, resid_it):
+        return aplha_it + aplha_jt + resid_it

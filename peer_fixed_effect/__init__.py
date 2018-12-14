@@ -1,1 +1,1 @@
-from .core import PeerFixedEffectRegression
+from .core import StaticPeerFixedEffectFixedEffect, CumulativePeerFixedEffectFixedEffect

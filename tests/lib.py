@@ -129,17 +129,42 @@ class CumulativeSample(SampleBase):
 
     def alpha_it(self, x_it0, beta1, fixed_effect_it0, beta2, id_it, group_it, time_it, rho0):
         alpha_it0 =  x_it0.dot(beta1) + fixed_effect_it0.dot(beta2)
-        df = DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['id', 'group', 'time', 'alphait0'])
-        df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
-            lambda x: (x.sum() - x) / (x.count() - 1))
-        df['rho_by_cumsum_mean_alphajt0'] = (
-            df
+
+        def mean_alphajt0(df):
+            df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
+                lambda x: (x.sum() - x) / (x.count() - 1))
+            return df
+
+        df = (
+            DataFrame(c_[id_it, group_it, time_it, alpha_it0],
+                      columns=['id', 'group', 'time', 'alphait0'])
+            .pipe(mean_alphajt0)
             .sort_values(['id', 'time'])
-            .groupby(['id'])
-            ['mean_alphajt0']
-            .cumsum()
+            .assign(
+                cumsum_mean_alphajt0=lambda df: df.groupby(['id'])['mean_alphajt0'].cumsum())
+            .assign(
+                shift_cumsum_mean_alphajt0=lambda df: df.groupby(['id'])['cumsum_mean_alphajt0'].shift(1))
+            .fillna(0)
             .sort_index()
+            .assign(
+                alpha_it=lambda df: df['alphait0'] + rho0 * df['shift_cumsum_mean_alphajt0']
+            )
         )
-        df['alpha_it'] = df['alphait0'] + rho0 * df['rho_by_cumsum_mean_alphajt0']
         alpha_it = df[['alpha_it']].values
         return alpha_it
+
+        # df = DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['id', 'group', 'time', 'alphait0'])
+        # df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
+        #     lambda x: (x.sum() - x) / (x.count() - 1))
+        # df['rho_by_cumsum_mean_alphajt0'] = (
+        #     df
+        #     .sort_values(['id', 'time'])
+        #     .groupby(['id'])
+        #     ['mean_alphajt0']
+        #     .cumsum()
+        #     .sort_index()
+        # )
+        # import pdb;pdb.set_trace()
+        # df['alpha_it'] = df['alphait0'] + rho0 * df['rho_by_cumsum_mean_alphajt0']
+        # alpha_it = df[['alpha_it']].values
+        # return alpha_it

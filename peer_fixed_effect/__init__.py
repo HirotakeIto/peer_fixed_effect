@@ -1,1 +1,1 @@
-from .core import StaticPeerFixedEffectFixedEffect, CumulativePeerFixedEffectFixedEffect
+from .core import StaticPeerFixedEffect, CumulativePeerFixedEffect

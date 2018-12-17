@@ -86,64 +86,31 @@ class StaticPeerFixedEffectStructureMixin(PeerFixedEffectStructureMixin):
 class CumulativePeerFixedEffectStructureMixin(PeerFixedEffectStructureMixin):
     @staticmethod
     def get_alpha_it(alpha_it0: np.array, id_it: np.array, group_it: np.array, time_it: np.array, gamma0: float):
-        df = DataFrame(c_[id_it, group_it, time_it, alpha_it0],
-                      columns=['id', 'group', 'time', 'alpha_it0'])
-        time_list = sorted(df['time'].unique().tolist())
-
-        def mean_alphajt0(df):
-            df['mean_alphajt_1'] = df.groupby(['group', 'time'])['alphait_1'].transform(
-                lambda x: (x.sum() - x) / (x.count() - 1))
+        def set_initial_alphait(df, start_time):
+            df.loc[df['time'] == start_time, 'alpha_it'] = df['alpha_it0']
             return df
 
-        df.loc[df['time'] == time_list[0], 'alpha_it'] = df['alpha_it0']
-        for time in time_list[1:]:
-            df['alphait_1'] = (
-                df
-                    .sort_values(['id', 'time'])
-                    .groupby(['id'])
-                ['alpha_it']
-                    .shift(1)
-            )
-            df = df.pipe(mean_alphajt0)
-            df = df.sort_index()
-            df.loc[df['time'] == time, 'alpha_it'] = df['alpha_it0'] + gamma0 * df['mean_alphajt_1']
+        def mean_alphajt_1(df_specific_time):
+            return df_specific_time.groupby(['group_t_1'])['alphait_1'].transform(
+                lambda x: (x.sum() - x) / (x.count() - 1))
+
+        def set_alpha_it(df, set_time_list):
+            # id方向とtime方向に順序がaccendingになっている必要がある(ここでチェックはしない)
+            for time in set_time_list:
+                df['alphait_1'] = df.groupby(['ids'])['alpha_it'].shift(1)
+                df['group_t_1'] = df.groupby(['ids'])['group'].shift(1)
+                slicing = df['time'] == time
+                df.loc[slicing, 'mean_alphajt_1'] = mean_alphajt_1(df[slicing])
+                df.loc[slicing, 'alpha_it'] = df.loc[slicing, 'alphait_1'] + gamma0 * df.loc[slicing, 'mean_alphajt_1']
+            return df
+
+        time_list = sorted(np.unique(time_it).tolist())
+        df = (
+            DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['ids', 'group', 'time', 'alpha_it0'])
+            .sort_values(['ids', 'time'])
+            .pipe(set_initial_alphait, start_time=time_list[0])
+            .pipe(set_alpha_it, set_time_list=time_list[1:])
+            .sort_index()
+        )
         alpha_it = df[['alpha_it']].values
         return alpha_it
-
-        # def mean_alphajt0(df_tmp):
-        #     df_tmp['mean_alphajt0'] = df_tmp.groupby(['group', 'time'])['alphait0'].transform(
-        #         lambda x: (x.sum() - x) / (x.count() - 1))
-        #     return df_tmp
-        #
-        # df = (
-        #     DataFrame(c_[id_it, group_it, time_it, alpha_it0],
-        #               columns=['id', 'group', 'time', 'alphait0'])
-        #     .pipe(mean_alphajt0)
-        #     .sort_values(['id', 'time'])
-        #     .assign(
-        #         cumsum_mean_alphajt0=lambda dfx: dfx.groupby(['id'])['mean_alphajt0'].cumsum())
-        #     .assign(
-        #         shift_cumsum_mean_alphajt0=lambda dfx: dfx.groupby(['id'])['cumsum_mean_alphajt0'].shift(1))
-        #     .fillna(0)
-        #     .sort_index()
-        #     .assign(
-        #         alpha_it=lambda dfx: dfx['alphait0'] + gamma0 * dfx['shift_cumsum_mean_alphajt0']
-        #     )
-        # )
-        # alpha_it = df[['alpha_it']].values
-        # return alpha_it
-
-        # df = DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['id', 'group', 'time', 'alphait0'])
-        # df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
-        #     lambda x: (x.sum() - x) / (x.count() - 1))
-        # df['cumsum_mean_alphajt0'] = (
-        #     df
-        #     .sort_values(['id', 'time'])
-        #     .groupby(['id'])
-        #     ['mean_alphajt0']
-        #     .cumsum()
-        #     .sort_index()
-        # )
-        # df['alpha_it'] = df['alphait0'] + gamma0 * df['cumsum_mean_alphajt0']
-        # alpha_it = df[['alpha_it']].values
-        # return alpha_it

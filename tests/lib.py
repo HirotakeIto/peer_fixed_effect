@@ -75,6 +75,9 @@ class SampleBase(MixinRandomSample):
         fixed_effect_i0 = self.sample(size=(n_individual, 1), dist=dist, **argv)
         return kron(fixed_effect_i0, np.ones(shape=(n_time, 1)))
 
+    def alpha_it0(self, x_it0, beta1, fixed_effect_it0, beta2):
+        return x_it0.dot(beta1) + fixed_effect_it0.dot(beta2)
+
     def alpha_it(self, **argv):
         raise NotImplementedError('Please override')
 
@@ -98,17 +101,18 @@ class StaticSample(SampleBase):
         time_it = self.time_it(self.n_individual, self.n_time)
         x_it = self.x_it(self.n_individual, self.n_characteristics, self.n_time, **self.x_it_argv)
         fixed_effect_it = self.fixed_effect_it(self.n_individual, self.n_time, **self.fixed_effect_it_argv)
-        alpha_it = self.alpha_it(x_it, self.beta1, fixed_effect_it, self.beta2)
+        alpha_it0 = self.alpha_it0(x_it, self.beta1, fixed_effect_it, self.beta2)
+        alpha_it = self.alpha_it(alpha_it0)
         alpha_jt = self.alpha_jt(group_it, time_it, alpha_it, rho0=self.rho0)
         resid_it = self.resid_it(self.n_individual, self.n_time, **self.resid_it_argv)
         yit = self.y_it(alpha_it, alpha_jt, resid_it)
         return DataFrame(
-            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it, alpha_jt, resid_it, yit, x_it],
-            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
+            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
+            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
         )
 
-    def alpha_it(self, x_it, beta1, fixed_effect_it, beta2):
-        return x_it.dot(beta1) + fixed_effect_it.dot(beta2)
+    def alpha_it(self, alpha_it0):
+        return alpha_it0
 
 
 class CumulativeSample(SampleBase):
@@ -118,76 +122,42 @@ class CumulativeSample(SampleBase):
         time_it = self.time_it(self.n_individual, self.n_time)
         x_it = self.x_it(self.n_individual, self.n_characteristics, self.n_time, **self.x_it_argv)
         fixed_effect_it = self.fixed_effect_it(self.n_individual, self.n_time, **self.fixed_effect_it_argv)
-        alpha_it = self.alpha_it(x_it, self.beta1, fixed_effect_it, self.beta2, id_it, group_it, time_it, self.rho0)
+        alpha_it0 = self.alpha_it0(x_it, self.beta1, fixed_effect_it, self.beta2)
+        alpha_it = self.alpha_it(alpha_it0, id_it, group_it, time_it, self.rho0)
         alpha_jt = self.alpha_jt(group_it, time_it, alpha_it, rho0=self.rho0)
         resid_it = self.resid_it(self.n_individual, self.n_time, **self.resid_it_argv)
         yit = self.y_it(alpha_it, alpha_jt, resid_it)
         return DataFrame(
-            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it, alpha_jt, resid_it, yit, x_it],
-            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
+            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
+            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
         )
 
-    def alpha_it(self, x_it0, beta1, fixed_effect_it0, beta2, id_it, group_it, time_it, rho0):
-        alpha_it0 =  x_it0.dot(beta1) + fixed_effect_it0.dot(beta2)
-        df = DataFrame(c_[id_it, group_it, time_it, alpha_it0],
-                      columns=['id', 'group', 'time', 'alpha_it0'])
-        time_list = sorted(df['time'].unique().tolist())
-
-        def mean_alphajt0(df):
-            df['mean_alphajt_1'] = df.groupby(['group', 'time'])['alphait_1'].transform(
-                lambda x: (x.sum() - x) / (x.count() - 1))
+    def alpha_it(self, alpha_it0, id_it, group_it, time_it, gamma0):
+        def set_initial_alphait(df, start_time):
+            df.loc[df['time'] == start_time, 'alpha_it'] = df['alpha_it0']
             return df
 
-        df.loc[df['time'] == time_list[0], 'alpha_it'] = df['alpha_it0']
-        for time in time_list[1:]:
-            print(time)
-            df['alphait_1'] = (
-                df
-                    .sort_values(['id', 'time'])
-                    .groupby(['id'])
-                ['alpha_it']
-                    .shift(1)
-            )
-            df = df.pipe(mean_alphajt0)
-            df = df.sort_index()
-            df.loc[df['time'] == time, 'alpha_it'] = df['alpha_it0'] + rho0 * df['mean_alphajt_1']
+        def mean_alphajt_1(df_specific_time):
+            return df_specific_time.groupby(['group_t_1'])['alphait_1'].transform(
+                lambda x: (x.sum() - x) / (x.count() - 1))
+
+        def set_alpha_it(df, set_time_list):
+            # id方向とtime方向に順序がaccendingになっている必要がある(ここでチェックはしない)
+            for time in set_time_list:
+                df['alphait_1'] = df.groupby(['ids'])['alpha_it'].shift(1)
+                df['group_t_1'] = df.groupby(['ids'])['group'].shift(1)
+                slicing = df['time'] == time
+                df.loc[slicing, 'mean_alphajt_1'] = mean_alphajt_1(df[slicing])
+                df.loc[slicing, 'alpha_it'] = df.loc[slicing, 'alphait_1'] + gamma0 * df.loc[slicing, 'mean_alphajt_1']
+            return df
+
+        time_list = sorted(np.unique(time_it).tolist())
+        df = (
+            DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['ids', 'group', 'time', 'alpha_it0'])
+            .sort_values(['ids', 'time'])
+            .pipe(set_initial_alphait, start_time=time_list[0])
+            .pipe(set_alpha_it, set_time_list=time_list[1:])
+            .sort_index()
+        )
         alpha_it = df[['alpha_it']].values
         return alpha_it
-        # def mean_alphajt0(df):
-        #     df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
-        #         lambda x: (x.sum() - x) / (x.count() - 1))
-        #     return df
-        #
-        # df = (
-        #     DataFrame(c_[id_it, group_it, time_it, alpha_it0],
-        #               columns=['id', 'group', 'time', 'alphait0'])
-        #     .pipe(mean_alphajt0)
-        #     .sort_values(['id', 'time'])
-        #     .assign(
-        #         cumsum_mean_alphajt0=lambda df: df.groupby(['id'])['mean_alphajt0'].cumsum())
-        #     .assign(
-        #         shift_cumsum_mean_alphajt0=lambda df: df.groupby(['id'])['cumsum_mean_alphajt0'].shift(1))
-        #     .fillna(0)
-        #     .sort_index()
-        #     .assign(
-        #         alpha_it=lambda df: df['alphait0'] + rho0 * df['shift_cumsum_mean_alphajt0']
-        #     )
-        # )
-        # alpha_it = df[['alpha_it']].values
-        # return alpha_it
-
-        # df = DataFrame(c_[id_it, group_it, time_it, alpha_it0], columns=['id', 'group', 'time', 'alphait0'])
-        # df['mean_alphajt0'] = df.groupby(['group', 'time'])['alphait0'].transform(
-        #     lambda x: (x.sum() - x) / (x.count() - 1))
-        # df['rho_by_cumsum_mean_alphajt0'] = (
-        #     df
-        #     .sort_values(['id', 'time'])
-        #     .groupby(['id'])
-        #     ['mean_alphajt0']
-        #     .cumsum()
-        #     .sort_index()
-        # )
-        # import pdb;pdb.set_trace()
-        # df['alpha_it'] = df['alphait0'] + rho0 * df['rho_by_cumsum_mean_alphajt0']
-        # alpha_it = df[['alpha_it']].values
-        # return alpha_it

@@ -9,11 +9,11 @@ class PeerFixedEffectStructureMixin:
         self.LR = LinearRegression()
 
     @staticmethod
-    def get_mean_alpha_jt(time_it: np.array, group_it: np.array, alpha_it0: np.array):
+    def get_mean_alpha_jt(time_it: np.array, group_it: np.array, alpha_it: np.array):
         return (
-            DataFrame(c_[time_it, group_it, alpha_it0], columns=['time', 'group', 'alphait0'])
+            DataFrame(c_[time_it, group_it, alpha_it], columns=['time', 'group', 'alphait'])
             .groupby(['time', 'group'])
-            [['alphait0']]
+            [['alphait']]
             .transform(lambda x: (x.sum() - x) / (x.count() - 1))
             .values
         )

@@ -47,7 +47,7 @@ class StaticPeerFixedEffect(PeerFixedEffect, StaticPeerFixedEffectStructureMixin
         alpha_it0 = self.alpha_it0
         alpha_it = self.get_alpha_it(alpha_it0)
         for iteration in range(self.max_iteration):
-            mean_alpha_jt = self.get_mean_alpha_jt(time_it=time_it, group_it=group_it, alpha_it0=alpha_it0)
+            mean_alpha_jt = self.get_mean_alpha_jt(time_it=time_it, group_it=group_it, alpha_it=alpha_it0)
             gamma0 = self.get_gamma0(y_it=y_it, alpha_it=alpha_it,
                                      mean_alpha_jt=mean_alpha_jt, rho_boundry=self.gamma_boundry)
             alpha_it0 = self.get_new_alpha_it0(n_time=self.n_time, gamma0=gamma0, id_it=id_it, time_it=time_it,
@@ -76,7 +76,8 @@ class CumulativePeerFixedEffect(PeerFixedEffect, CumulativePeerFixedEffectStruct
         alpha_it0 = self.alpha_it0
         alpha_it = self.get_alpha_it(alpha_it0=alpha_it0, id_it=id_it, group_it=group_it, time_it=time_it, gamma0=gamma0)
         for iteration in range(self.max_iteration):
-            mean_alpha_jt = self.get_mean_alpha_jt(time_it=time_it, group_it=group_it, alpha_it0=alpha_it0)
+            # TODO: 個々の時系列注意！（fixedeffect使うのか、蓄積データ使うのか。）
+            mean_alpha_jt = self.get_mean_alpha_jt(time_it=time_it, group_it=group_it, alpha_it=alpha_it)
             gamma0 = self.get_gamma0(y_it=y_it, alpha_it=alpha_it,
                                      mean_alpha_jt=mean_alpha_jt, rho_boundry=self.gamma_boundry)
             alpha_it0 = self.get_new_alpha_it0(n_time=self.n_time, gamma0=gamma0, id_it=id_it, time_it=time_it,

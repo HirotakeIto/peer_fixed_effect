@@ -75,11 +75,10 @@ class StaticPeerFixedEffectEstimator(PeerEffectEstimator, StaticPeerFixedEffectS
             alpha_it0 = self.get_new_alpha_it0(n_time=n_time, gamma0=gamma0, id_it=id_it, time_it=time_it,
                                                group_it=group_it, y_it=y_it, alpha_it=alpha_it)
             alpha_it = self.get_alpha_it(alpha_it0=alpha_it0)
-            print("{q}th iteration: estimated gamma is {gamma0:.4f}".format(q=iteration, gamma0=gamma0))
             if (abs(gamma0 - gamma0_prime) < 10 ** (-5)) & (abs(gamma0) < self.gamma_boundry):
                 break
             else:
-                if self.verbose&((iteration + 1) % 100 == 0):
+                if self.verbose&((iteration + 1) % 10 == 0):
                     print("{q}th iteration: estimated gamma is {gamma0:.4f}".format(q=iteration, gamma0=gamma0))
                 gamma0_prime = gamma0
         return gamma0_prime, alpha_it0, alpha_it
@@ -120,11 +119,10 @@ class CumulativePeerFixedEffectEstimator(PeerEffectEstimator, CumulativePeerFixe
             alpha_it0 = self.get_new_alpha_it0(n_time=n_time, gamma0=gamma0, id_it=id_it, time_it=time_it,
                                                group_it=group_it, y_it=y_it, alpha_it=alpha_it)
             alpha_it = self.get_alpha_it(alpha_it0=alpha_it0, id_it=id_it, group_it=group_it, time_it=time_it, gamma0=gamma0)
-            print("{q}th iteration: estimated gamma is {gamma0:.4f}".format(q=iteration, gamma0=gamma0))
             if (abs(gamma0 - gamma0_prime) < 10 ** (-5)) & (abs(gamma0) < self.gamma_boundry):
                 break
             else:
-                if self.verbose&( (iteration + 1) % 100 == 0):
+                if self.verbose&( (iteration + 1) % 10 == 0):
                     print("{q}th iteration: estimated gamma is {gamma0:.4f}".format(q=iteration, gamma0=gamma0))
                 gamma0_prime = gamma0
         return gamma0_prime, alpha_it0, alpha_it

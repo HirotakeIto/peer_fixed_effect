@@ -18,17 +18,17 @@ class PeerFixedEffectStructureMixin:
             .values
         )
 
-    def get_gamma0(self, y_it: np.array, alpha_it: np.array, mean_alpha_jt: np.array, rho_boundry=0.4):
+    def get_gamma0(self, y_it: np.array, alpha_it: np.array, mean_alpha_jt: np.array, gamma_boundry=0.4):
         """
         LinearRegressionのオブジェクト生成にかかる時間を節約する
         """
         return self._get_gamma0(
-            LR=self.LR, y_it=y_it, alpha_it=alpha_it, mean_alpha_jt=mean_alpha_jt, rho_boundry=rho_boundry)
+            LR=self.LR, y_it=y_it, alpha_it=alpha_it, mean_alpha_jt=mean_alpha_jt, gamma_boundry=gamma_boundry)
 
     @staticmethod
-    def _get_gamma0(LR, y_it, alpha_it, mean_alpha_jt, rho_boundry=0.4):
+    def _get_gamma0(LR, y_it, alpha_it, mean_alpha_jt, gamma_boundry=0.4):
         LR.fit(y = y_it - alpha_it, X=mean_alpha_jt)
-        return max(min(LR.coef_[0, 0], rho_boundry), -rho_boundry)
+        return max(min(LR.coef_[0, 0], gamma_boundry), -gamma_boundry)
 
     @staticmethod
     def get_new_alpha_it0(

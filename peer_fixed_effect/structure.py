@@ -5,11 +5,11 @@ from sklearn.linear_model import LinearRegression
 
 
 class PeerFixedEffectStructureMixin:
-    def __init__(self):
+    def __init__(self, **argv):
         self.LR = LinearRegression()
 
     @staticmethod
-    def get_mean_alpha_jt(time_it: np.array, group_it: np.array, alpha_it: np.array):
+    def get_mean_alpha_jt(time_it: np.ndarray, group_it: np.ndarray, alpha_it: np.ndarray):
         return (
             DataFrame(c_[time_it, group_it, alpha_it], columns=['time', 'group', 'alphait'])
             .groupby(['time', 'group'])
@@ -18,7 +18,21 @@ class PeerFixedEffectStructureMixin:
             .values
         )
 
-    def get_gamma0(self, y_it: np.array, alpha_it: np.array, mean_alpha_jt: np.array, gamma_boundry=0.4):
+    @staticmethod
+    def get_gamma0(**argv):
+        raise NotImplementedError('Please use overided class')
+
+    @staticmethod
+    def get_new_alpha_it0(**argv):
+        raise NotImplementedError('Please use overided class')
+
+    @staticmethod
+    def get_alpha_it(**argv):
+        raise NotImplementedError('Please use overided class')
+
+
+class SimpleStructureMixin(PeerFixedEffectStructureMixin):
+    def get_gamma0(self, y_it: np.ndarray, alpha_it: np.ndarray, mean_alpha_jt: np.ndarray, gamma_boundry=0.4):
         """
         LinearRegressionのオブジェクト生成にかかる時間を節約する
         """
@@ -33,7 +47,7 @@ class PeerFixedEffectStructureMixin:
     @staticmethod
     def get_new_alpha_it0(
             n_time, gamma0,
-            id_it: np.array, time_it: np.array, group_it: np.array, y_it: np.array, alpha_it: np.array
+            id_it: np.ndarray, time_it: np.ndarray, group_it: np.ndarray, y_it: np.ndarray, alpha_it: np.ndarray
     ):
         """
         Return  alpha_it0 vector which represents fixed-effect of individual i.
@@ -77,15 +91,15 @@ class PeerFixedEffectStructureMixin:
         raise NotImplementedError('Please use overided class')
 
 
-class StaticPeerFixedEffectStructureMixin(PeerFixedEffectStructureMixin):
+class StaticSimpleStructureMixin(SimpleStructureMixin):
     @staticmethod
-    def get_alpha_it(alpha_it0: np.array):
+    def get_alpha_it(alpha_it0: np.ndarray):
         return alpha_it0
 
 
-class CumulativePeerFixedEffectStructureMixin(PeerFixedEffectStructureMixin):
+class CumulativeSimpleStructureMixin(SimpleStructureMixin):
     @staticmethod
-    def get_alpha_it(alpha_it0: np.array, id_it: np.array, group_it: np.array, time_it: np.array, gamma0: float):
+    def get_alpha_it(alpha_it0: np.ndarray, id_it: np.ndarray, group_it: np.ndarray, time_it: np.ndarray, gamma0: float):
         def set_initial_alphait(df, start_time):
             df.loc[df['time'] == start_time, 'alpha_it'] = df['alpha_it0']
             return df
@@ -114,3 +128,101 @@ class CumulativePeerFixedEffectStructureMixin(PeerFixedEffectStructureMixin):
         )
         alpha_it = df[['alpha_it']].values
         return alpha_it
+
+
+class CorrelatedEffectStructureMixin(PeerFixedEffectStructureMixin):
+    """
+    すべてのピアグループはコース内で結成されます
+        "all peer groups are formed within courses"
+
+    """
+    def get_gamma0(
+            self, y_it: np.ndarray, alpha_it: np.ndarray,
+            mean_alpha_jt: np.ndarray, course_effect_it: np.ndarray,
+            gamma_boundry=0.4):
+        """
+        LinearRegressionのオブジェクト生成にかかる時間を節約する
+        """
+        return self._get_gamma0(
+            LR=self.LR, y_it=y_it, alpha_it=alpha_it, mean_alpha_jt=mean_alpha_jt,
+            course_effect_it=course_effect_it, gamma_boundry=gamma_boundry)
+
+    @staticmethod
+    def _get_gamma0(
+            LR, y_it, alpha_it, mean_alpha_jt,
+            course_effect_it, gamma_boundry=0.4
+    ):
+        LR.fit(y = y_it - alpha_it - course_effect_it, X=mean_alpha_jt)
+        return max(min(LR.coef_[0, 0], gamma_boundry), -gamma_boundry)
+
+    @staticmethod
+    def get_course_effect_it(
+            time_it: np.ndarray, group_it: np.ndarray, course_it: np.ndarray,
+            y_it: np.ndarray, alpha_it: np.ndarray, gamma0: float
+    ):
+        course_effect_it = (
+            DataFrame(
+                c_[time_it, group_it, course_it, y_it, alpha_it],
+                columns=['time', 'group', 'course', 'yit', 'alphait'])
+            .assign(
+                mean_alphajt=lambda df: (
+                    df
+                    .groupby(['time', 'group'])
+                    ['alphait']
+                    .transform(lambda x: (x.sum() - x) / (x.count() - 1))))
+            .assign(
+                resid_it=lambda df: df['yit'] - df['alphait'] - gamma0 * df['mean_alphajt'])
+            .assign(
+                course_effect_it=lambda df: (
+                    df
+                    .groupby(['time', 'course'])
+                    ['resid_it']
+                    .transform('mean')))
+            [['course_effect_it']]
+            .values
+        )
+        return course_effect_it
+
+    @staticmethod
+    def get_new_alpha_it0(
+            n_time, gamma0,
+            id_it: np.ndarray, time_it: np.ndarray, group_it: np.ndarray, y_it: np.ndarray, alpha_it: np.ndarray,
+            course_effect_it: np.ndarray
+    ):
+        """
+        Return  alpha_it0 vector which represents fixed-effect of individual i.
+        This vector is (n * t, 1) matrix (n: number of individuals, t: number of time).
+        """
+        # read set
+        df = DataFrame(
+            c_[id_it, time_it, group_it, y_it, alpha_it, course_effect_it],
+            columns=['id', 'time', 'group', 'yit', 'alphait0', 'course_effect']
+        )
+        # calc
+        grouped = df.groupby(['time', 'group'])
+        df['m_tn'] = grouped['group'].transform(lambda x: x.shape[0] - 1)
+        df['s_tn'] = grouped['alphait0'].transform('sum')
+        df['sum_yit'] = grouped['yit'].transform('sum')
+        df['sum_course_effect'] = grouped['course_effect'].transform('sum')
+        df['gamma_over_m'] = gamma0 / df['m_tn']
+        df['part1'] = df['yit']
+        df['part2'] = df['gamma_over_m'] * (df['s_tn'] - df['alphait0'])
+        df['part3'] = df['gamma_over_m'] * (df['sum_yit'] - df['yit'])
+        df['part4'] = df['part2']
+        df['part5'] = \
+            (df['gamma_over_m'] * df['gamma_over_m']) \
+            * \
+            (df['m_tn'] * (df['s_tn'] - df['alphait0']) - df['s_tn'] + df['alphait0'])
+        df['part2_1'] = df['course_effect']
+        df['part4_1'] = df['gamma_over_m'] * df['sum_course_effect']
+        df['A_it'] = df['part1'] - df['part2']  - df['part2_1'] \
+                     + df['part3'] - df['part4'] - df['part4_1'] - df['part5']
+        grouped_by_id = df.groupby(['id'])
+        df['child'] = grouped_by_id['A_it'].transform('sum')
+        df['mother'] = n_time + gamma0 * gamma0 / grouped_by_id['m_tn'].transform('sum')
+        df['new_alpha_it0'] = df['child'] / df['mother']
+        return df[['new_alpha_it0']].values
+
+    @staticmethod
+    def get_alpha_it(alpha_it0: np.ndarray):
+        return alpha_it0

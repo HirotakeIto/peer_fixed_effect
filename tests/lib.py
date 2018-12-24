@@ -1,7 +1,7 @@
 import numpy as np
 from pandas import DataFrame
-from numpy import random
-from numpy import kron, c_
+from numpy import random, kron, c_
+from functools import reduce
 import json
 
 class MixinRandomSample:
@@ -24,7 +24,8 @@ class MixinRandomSample:
 
 class SampleBase(MixinRandomSample):
     def __init__(self, n_individual=10000, n_group=10, n_time=4, n_characteristics=3, seed=None,
-                 x_it_argv=None, fixed_effect_it_argv=None, resid_it_argv=None):
+                 x_it_argv=None, fixed_effect_it_argv=None, resid_it_argv=None,
+                 course_or_not=False, n_course=3):
         self.n_individual = n_individual
         self.n_group = n_group
         self.n_time = n_time
@@ -32,6 +33,8 @@ class SampleBase(MixinRandomSample):
         self.x_it_argv = {} if x_it_argv is None else x_it_argv
         self.fixed_effect_it_argv = {} if fixed_effect_it_argv is None else fixed_effect_it_argv
         self.resid_it_argv = {} if resid_it_argv is None else resid_it_argv
+        self.course_or_not = course_or_not
+        self.n_course = n_course
         self.data = None
         if seed is not None:
             random.seed(seed)
@@ -75,6 +78,33 @@ class SampleBase(MixinRandomSample):
         fixed_effect_i0 = self.sample(size=(n_individual, 1), dist=dist, **argv)
         return kron(fixed_effect_i0, np.ones(shape=(n_time, 1)))
 
+    def course_it(self, time_it, group_it, n_course):
+        course_effect = (
+            DataFrame(
+                c_[time_it, group_it],
+                columns=['time', 'group'])
+            .assign(
+                course=1)
+            .groupby(['time', 'group'])
+            [['course']]
+            .transform(
+                lambda x: x * random.randint(low=0, high=n_course, size=1)[0])
+        )
+        return course_effect
+
+    def course_effect_it(self, time_it, course_it, dist='standard', **argv):
+        array = (
+            DataFrame(c_[time_it, course_it], columns=['time', 'course'])
+            .assign(val = 1)
+            .groupby(['time', 'course'])
+            [['val']]
+            .transform(
+                lambda x: x * self.sample(size=1, dist=dist, **argv)[0]
+            )
+            .values
+        )
+        return array
+
     def alpha_it0(self, x_it0, beta1, fixed_effect_it0, beta2):
         return x_it0.dot(beta1) + fixed_effect_it0.dot(beta2)
 
@@ -90,8 +120,11 @@ class SampleBase(MixinRandomSample):
     def resid_it(self, n_individual, n_time, dist='standard', **argv):
         return self.sample(size=(n_individual * n_time, 1), dist=dist, **argv) * 0.01
 
-    def y_it(self, aplha_it, aplha_jt, resid_it):
-        return aplha_it + aplha_jt + resid_it
+    # def y_it(self, aplha_it, aplha_jt, resid_it):
+    #     return aplha_it + aplha_jt + resid_it
+
+    def y_it(self, *argv):
+        return reduce(lambda x, y: x + y, argv)
 
 
 class StaticSample(SampleBase):
@@ -105,11 +138,24 @@ class StaticSample(SampleBase):
         alpha_it = self.alpha_it(alpha_it0)
         alpha_jt = self.alpha_jt(group_it, time_it, alpha_it, rho0=self.rho0)
         resid_it = self.resid_it(self.n_individual, self.n_time, **self.resid_it_argv)
-        yit = self.y_it(alpha_it, alpha_jt, resid_it)
-        return DataFrame(
-            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
-            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
-        )
+        if self.course_or_not is False:
+            yit = self.y_it(alpha_it, alpha_jt, resid_it)
+            return DataFrame(
+                c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
+                columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it',
+                         'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
+            )
+        else:
+            course_it = self.course_it(time_it=time_it, group_it=group_it, n_course=self.n_course)
+            course_effect_it = self.course_effect_it(time_it, course_it)
+            yit = self.y_it(alpha_it, alpha_jt, course_effect_it, resid_it)
+            return DataFrame(
+                c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it,
+                   alpha_jt, course_it, course_effect_it, resid_it, yit, x_it],
+                columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt',
+                         'course_it', 'course_effect_it', 'resid_it', 'yit']
+                        + ['xit' + str(i) for i in range(x_it.shape[1])]
+            )
 
     def alpha_it(self, alpha_it0):
         return alpha_it0
@@ -126,11 +172,24 @@ class CumulativeSample(SampleBase):
         alpha_it = self.alpha_it(alpha_it0, id_it, group_it, time_it, self.rho0)
         alpha_jt = self.alpha_jt(group_it, time_it, alpha_it, rho0=self.rho0)
         resid_it = self.resid_it(self.n_individual, self.n_time, **self.resid_it_argv)
-        yit = self.y_it(alpha_it, alpha_jt, resid_it)
-        return DataFrame(
-            c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
-            columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it', 'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
-        )
+        if self.course_or_not is False:
+            yit = self.y_it(alpha_it, alpha_jt, resid_it)
+            return DataFrame(
+                c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it, alpha_jt, resid_it, yit, x_it],
+                columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt', 'resid_it',
+                         'yit'] + ['xit' + str(i) for i in range(x_it.shape[1])]
+            )
+        else:
+            course_it = self.course_it(time_it=time_it, group_it=group_it, n_course=self.n_course)
+            course_effect_it = self.course_effect_it(course_it)
+            yit = self.y_it(alpha_it, alpha_jt, course_effect_it, resid_it)
+            return DataFrame(
+                c_[id_it, group_it, time_it, fixed_effect_it, alpha_it0, alpha_it,
+                   alpha_jt, course_it, course_effect_it, resid_it, yit, x_it],
+                columns=['ids', 'group', 'time', 'fixed_effect_it', 'alpha_it0', 'alpha_it', 'alpha_jt',
+                         'course_it', 'course_effect_it', 'resid_it', 'yit']
+                        + ['xit' + str(i) for i in range(x_it.shape[1])]
+            )
 
     def alpha_it(self, alpha_it0, id_it, group_it, time_it, gamma0):
         def set_initial_alphait(df, start_time):

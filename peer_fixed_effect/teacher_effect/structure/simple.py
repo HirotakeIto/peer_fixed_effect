@@ -1,3 +1,11 @@
+"""
+Notation:
+ i: individual student
+ j: teacher
+ g: grade
+ t: time
+"""
+
 import pandas as pd
 # from scipy.optimize import least_squares
 from scipy.optimize import minimize

@@ -53,7 +53,10 @@ class SimpleTeacherEffectMixin(TeacherEffectMixin):
 
     def initialize_teacher_effect_ijgt(self, cls, random_init=False, **argv):
         if random_init is True:
-            cls.df[cls.eft_jt_col] = random.uniform(0, 1, size=cls.df.shpae[0])
+            cls.df[cls.eft_jt_col] = random.normal(0, 1, size=cls.df.shape[0])
+            cls.df[cls.eft_jt_col] = cls.df.groupby([cls.tid_col, cls.grade_col])[cls.eft_jt_col].transform('mean')
+        # else:
+        #     cls.df[cls.eft_jt_col] = cls.df.groupby([cls.tid_col, cls.grade_col])[cls.y_col].transform('mean')
         elif (cls.eft_it_col not in cls.df.columns) | (cls.eft_jt_col not in cls.df.columns):
             cls.df[cls.eft_jt_col] = cls.df.groupby([cls.tid_col, cls.grade_col])[cls.y_col].transform('mean')
         else:
@@ -114,7 +117,10 @@ class SimpleIndividualEffectMixin(IndividualEffectMixin):
 
     def initialize_individual_effect_ijgt(self, cls, random_init=False, **argv):
         if random_init is True:
-            cls.df[cls.eft_it_col] = random.uniform(0, 1, size=cls.df.shpae[0])
+            cls.df[cls.eft_it_col] = random.normal(0, 1, size=cls.df.shape[0])
+            cls.df[cls.eft_it_col] = cls.df.groupby(cls.eft_it_col)[cls.y_col].transform('mean')
+        # else:
+        #     cls.df[cls.eft_it_col] = cls.df.groupby([cls.id_col])[cls.y_col].transform('mean')
         elif (cls.eft_it_col not in cls.df.columns) | (cls.eft_jt_col not in cls.df.columns):
             cls.df[cls.eft_it_col] = cls.df.groupby([cls.id_col])[cls.y_col].transform('mean')
         else:

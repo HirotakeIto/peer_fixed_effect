@@ -8,42 +8,48 @@ reload(simple)
 class SimpleRegression(BaseEstimator):
     model = simple.SimpleModel
 
-    def __init__(self, max_iteration=1000, seed=None, verbose=True, tolerance=10 ** (-4)):
+    def __init__(self, max_iteration=1000, seed=None, verbose=True, tolerance=10 ** (-8), random_init=False):
         self.seed = seed
         self.max_iteration = max_iteration
         self.verbose = verbose
         self.tolerance = tolerance
+        self.random_init = random_init
         self.parameters_dict_bootstraped = []
 
     def fit(self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col, bootstrap=None):
         if bootstrap is None:
             self.mo = self.model(
                 df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
-                max_iteration=self.max_iteration, seed=self.seed, verbose=self.verbose, tolerance=self.tolerance
+                max_iteration=self.max_iteration, seed=self.seed,
+                verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init
             )
             self.mo.fit()
         else:
             for _ in range(bootstrap):
                 self.mo = self.model(
                     df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
-                    max_iteration=self.max_iteration, seed=self.seed, verbose=self.verbose, tolerance=self.tolerance
+                    max_iteration=self.max_iteration, seed=self.seed,
+                    verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init
                 )
                 self.mo.fit()
                 self.parameters_dict_bootstraped.append(self.mo.parameters_dict)
 
 
 # df = pd.read_csv('./test.csv')
-# sr = SimpleRegression()
+# # df = pd.read_csv('./test_saitama.csv')
+# sr = SimpleRegression(random_init = False)
 # sr.fit(
-#     df=df,
+#     df=df.dropna().reset_index(drop=True),
 #     id_col = 'ids',
 #     tid_col = 'tid',
 #     grade_col = 'grade',
 #     y_col = 'y',
 #     eft_it_col = 'effect_it',
 #     eft_jt_col = 'effect_tid_t',
-#     bootstrap=2
+#     bootstrap=None
 # )
+#
+# sr.mo.persistence
 # sr.parameters_dict_bootstraped
 
 # df = pd.read_csv('./tests/data_tmp.csv')
@@ -57,7 +63,7 @@ class SimpleRegression(BaseEstimator):
 #     )
 # )
 # df_tmp.to_csv('test_saitama.csv', index=False)
-
+#
 
 # # id_col = 'ids'
 # tid_col = 'tid'

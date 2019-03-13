@@ -16,12 +16,13 @@ class SimpleRegression(BaseEstimator):
         self.random_init = random_init
         self.parameters_dict_bootstraped = []
 
-    def fit(self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col, bootstrap=None):
+    def fit(self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col, bootstrap=None, **argv):
         if bootstrap is None:
             self.mo = self.model(
                 df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
                 max_iteration=self.max_iteration, seed=self.seed,
-                verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init
+                verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init,
+                **argv
             )
             self.mo.fit()
         else:
@@ -47,12 +48,13 @@ class SimpleFixedRegression(BaseEstimator):
         self.random_init = random_init
         self.parameters_dict_bootstraped = []
 
-    def fit(self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col, bootstrap=None):
+    def fit(self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col, bootstrap=None, **argv):
         if bootstrap is None:
             self.mo = self.model(
                 df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
                 max_iteration=self.max_iteration, seed=self.seed,
-                verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init
+                verbose=self.verbose, tolerance=self.tolerance, random_init=self.random_init,
+                **argv
             )
             self.mo.fit()
         else:

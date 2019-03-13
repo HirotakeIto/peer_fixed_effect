@@ -27,6 +27,7 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
     def __init__(
             self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
             max_iteration=1000, seed=None, verbose=True, tolerance=10 ** (-4), random_init=False,
+            init_sigma=None,
             **argv):
         # id_col = 'ids'
         # tid_col = 'tid'
@@ -54,6 +55,7 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
         self.max_grade_col = 'max_grade'
         self.min_grade_col = 'min_grade'
         self.random_init = random_init
+        self.init_sigma = init_sigma
         self.df = (
             df
             .assign(
@@ -64,11 +66,12 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
 
     def initialization(self, random_init=False):
         self.sigma = 0.5
-        for _ in range(5):
+        for _ in range(1):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
 
     def iteration(self, **argv):
+        init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
         self.sigma = self.estimated_sigma(self, ftol=10 ** (-3), sigma_init=self.sigma)
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
@@ -82,7 +85,7 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
             print(self.sigma)
             if abs(sigma_prime - self.sigma) < self.tolerance:
                 print(self.sigma)
-                if iteration > 10:
+                if iteration > 50:
                     break
             if self.verbose & (iteration % 10 == 3):
                 print("{q}th iteration: estimated gamma is {sigma:.4f}".format(q=iteration, sigma=self.sigma))
@@ -104,6 +107,7 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
     def __init__(
             self, df, id_col, tid_col, grade_col, y_col, eft_it_col, eft_jt_col,
             max_iteration=1000, seed=None, verbose=True, tolerance=10 ** (-4), random_init=False,
+            init_sigma=None,
             **argv):
         # id_col = 'ids'
         # tid_col = 'tid'
@@ -120,6 +124,7 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
         self.max_iteration = max_iteration
         self.verbose = verbose
         self.tolerance = tolerance
+        self.init_sigma = init_sigma
         self.id_col = id_col
         self.tid_col = tid_col
         self.grade_col = grade_col
@@ -141,11 +146,12 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
 
     def initialization(self, random_init=False):
         self.sigma = 0.5
-        for _ in range(5):
+        for _ in range(1):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
 
     def iteration(self, **argv):
+        init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
         self.sigma = self.estimated_sigma(self, ftol=10 ** (-3), sigma_init=self.sigma)
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
@@ -159,7 +165,7 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
             print(self.sigma)
             if abs(sigma_prime - self.sigma) < self.tolerance:
                 print(self.sigma)
-                if iteration > 10:
+                if iteration > 50:
                     break
             if self.verbose & (iteration % 10 == 3):
                 print("{q}th iteration: estimated gamma is {sigma:.4f}".format(q=iteration, sigma=self.sigma))

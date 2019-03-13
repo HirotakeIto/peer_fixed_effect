@@ -83,9 +83,9 @@ class SimpleFixedRegression(BaseEstimator):
 #     bootstrap=None
 # )
 #
-#
+# #
 # df = pd.read_csv('./test2.csv')
-# sr = SimpleFixedRegression(random_init = False)
+# sr = SimpleFixedRegression(random_init = True)
 # sr.fit(
 #     df=df.dropna().reset_index(drop=True),
 #     id_col = 'ids',

@@ -66,13 +66,13 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
 
     def initialization(self, random_init=False):
         self.sigma = 0.5
-        for _ in range(1):
+        for _ in range(5):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
 
     def iteration(self, **argv):
         init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
-        self.sigma = self.estimated_sigma(self, ftol=10 ** (-3), sigma_init=self.sigma)
+        self.sigma = self.estimated_sigma(self, sigma_init=init_sigma)
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
 
@@ -146,13 +146,13 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
 
     def initialization(self, random_init=False):
         self.sigma = 0.5
-        for _ in range(1):
+        for _ in range(5):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
 
     def iteration(self, **argv):
         init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
-        self.sigma = self.estimated_sigma(self, ftol=10 ** (-3), sigma_init=self.sigma)
+        self.sigma = self.estimated_sigma(self, sigma_init=init_sigma)
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
 

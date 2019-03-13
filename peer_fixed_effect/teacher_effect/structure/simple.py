@@ -193,7 +193,7 @@ class SimplePersistenceMixin(PersistenceMixin):
     def _estimated_sigma(
             self,
             df: pd.DataFrame, id_col, grade_col, y_col, eft_it_col, eft_jt_col, max_grade_col,
-            sigma_init=0.5, ftol=10**(-3), **argv):
+            sigma_init=0.5, ftol=10**(-2), **argv):
         # res_1 = least_squares(
         #     self.get_residual_given_sigma,
         #     sigma_init,

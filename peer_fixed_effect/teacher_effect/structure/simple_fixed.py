@@ -12,7 +12,7 @@ class SimpleTeacherFixedEffectMixin(SimpleTeacherEffectMixin):
         else:
             cls.df[cls.eft_jt_col] = cls.df[cls.y_col] - cls.df[cls.eft_it_col]
             cls.df[cls.eft_jt_col] = cls.df.groupby([cls.tid_col])[cls.eft_jt_col].transform('mean')
-
+        cls.prime_eft_jt_col = cls.df[cls.eft_jt_col].copy()
 
     def estimate_teacher_effect_ijgt(self, cls, **argv):
         return self._estimate_teacher_effect_jg(
@@ -34,6 +34,22 @@ class SimpleTeacherFixedEffectMixin(SimpleTeacherEffectMixin):
         """
         間違っていると思うんだけど、、、なぜかワークした
         """
+        # df['dis_des'] = sigma ** (df[max_grade_col] - df[grade_col])
+        # df['eft_jt_dis_des'] = df[eft_jt_col] * df['dis_des']
+        # df_gby_id_sorted = df.sort_values([grade_col], ascending=True).groupby(id_col)
+        # df_gby_idtid_sorted = df.sort_values([grade_col], ascending=True).groupby([id_col, tid_col], sort=False)
+        # df['dis_des_id_tid'] = (df_gby_idtid_sorted['dis_des'].cumsum().sort_index() / df['dis_des']).fillna(0)
+        # df['dis_des_eft_jt_id_tid'] = (
+        #             df_gby_idtid_sorted['eft_jt_dis_des'].cumsum().sort_index() / df['dis_des']).fillna(0)
+        # df['dis_des_id_tid2'] = df['dis_des_id_tid'] ** 2
+        # df['resid_id_t'] = df[y_col] - df[eft_it_col] - (
+        #             (df_gby_id_sorted['eft_jt_dis_des'].cumsum().sort_index()) / df['dis_des']).fillna(0) + df[
+        #                        'dis_des_eft_jt_id_tid']
+        # df['weighted_resid_id_t'] = df['dis_des_id_tid'] * df['resid_id_t']
+        # df['mother'] = df.groupby([id_col, tid_col])['dis_des_id_tid2'].transform('sum')
+        # df['mother'] = df.groupby([tid_col])['mother'].transform('sum')
+        # df['child'] = df.groupby([id_col, tid_col])['weighted_resid_id_t'].transform('sum')
+        # df['child'] = df.groupby([tid_col])['child'].transform('sum')
         df['dis_des'] = sigma ** (df[max_grade_col] - df[grade_col])
         df['eft_jt_dis_des'] = df[eft_jt_col] * df['dis_des']
         df_gby_id_sorted = df.sort_values([grade_col], ascending=True).groupby(id_col)
@@ -50,4 +66,4 @@ class SimpleTeacherFixedEffectMixin(SimpleTeacherEffectMixin):
         df['mother'] = df.groupby([tid_col])['mother'].transform('sum')
         df['child'] = df.groupby([id_col, tid_col])['weighted_resid_id_t'].transform('sum')
         df['child'] = df.groupby([tid_col])['child'].transform('sum')
-        return df['child'] / df['mother']
+        return (df['child'] / df['mother']).fillna(0)

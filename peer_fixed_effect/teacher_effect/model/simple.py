@@ -69,6 +69,7 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
         for _ in range(5):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
+            self.initialize_sigma(self)
 
     def iteration(self, **argv):
         init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
@@ -76,17 +77,24 @@ class SimpleModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherEffectMix
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
 
+    def is_convergence(self, **argv):
+        return (
+                self.is_individual_effect_ijgt_convergence(self, self.tolerance)
+                &
+                self.is_teacher_effect_ijgt_convergence(self, self.tolerance)
+                &
+                self.is_sigma_convergence(self, self.tolerance)
+        )
+
     def fit(self):
         self.initialization(self.random_init)
         # import pdb;pdb.set_trace()
         for iteration in range(self.max_iteration):
-            sigma_prime = self.sigma
             self.iteration()
             print(self.sigma)
-            if abs(sigma_prime - self.sigma) < self.tolerance:
+            if self.is_convergence():
                 print(self.sigma)
-                if iteration > 50:
-                    break
+                break
             if self.verbose & (iteration % 10 == 3):
                 print("{q}th iteration: estimated gamma is {sigma:.4f}".format(q=iteration, sigma=self.sigma))
 
@@ -149,6 +157,7 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
         for _ in range(5):
             self.initialize_individual_effect_ijgt(self, random_init)
             self.initialize_teacher_effect_ijgt(self, random_init)
+            self.initialize_sigma(self)
 
     def iteration(self, **argv):
         init_sigma = self.init_sigma if self.init_sigma is not None else 0.5
@@ -156,17 +165,38 @@ class SimpleFixedModel(BaseModel, SimpleIndividualEffectMixin, SimpleTeacherFixe
         self.df[self.eft_it_col] = self.estimate_individual_effect_ijgt(self)
         self.df[self.eft_jt_col] = self.estimate_teacher_effect_ijgt(self)
 
+    def is_convergence(self, **argv):
+        return (
+                self.is_individual_effect_ijgt_convergence(self, self.tolerance)
+                &
+                self.is_teacher_effect_ijgt_convergence(self, self.tolerance)
+                &
+                self.is_sigma_convergence(self, self.tolerance)
+        )
+
     def fit(self):
         self.initialization(self.random_init)
         # import pdb;pdb.set_trace()
         for iteration in range(self.max_iteration):
-            sigma_prime = self.sigma
             self.iteration()
             print(self.sigma)
-            if abs(sigma_prime - self.sigma) < self.tolerance:
+            if self.is_convergence():
                 print(self.sigma)
-                if iteration > 50:
-                    break
+                break
             if self.verbose & (iteration % 10 == 3):
                 print("{q}th iteration: estimated gamma is {sigma:.4f}".format(q=iteration, sigma=self.sigma))
-
+        # self.initialization(self.random_init)
+        # flag = 0
+        # # import pdb;pdb.set_trace()
+        # for iteration in range(self.max_iteration):
+        #     sigma_prime = self.sigma
+        #     self.iteration()
+        #     print(self.sigma)
+        #     if abs(sigma_prime - self.sigma) < self.tolerance:
+        #         flag += 1
+        #         print(self.sigma)
+        #         if flag > 15:
+        #             break
+        #     if self.verbose & (iteration % 10 == 3):
+        #         print("{q}th iteration: estimated gamma is {sigma:.4f}".format(q=iteration, sigma=self.sigma))
+        #

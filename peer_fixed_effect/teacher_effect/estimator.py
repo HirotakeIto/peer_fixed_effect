@@ -70,22 +70,8 @@ class SimpleFixedRegression(BaseEstimator):
 
 
 # df = pd.read_csv('./test.csv')
-# # df = pd.read_csv('./test_saitama.csv')
-# sr = SimpleRegression(random_init = False)
-# sr.fit(
-#     df=df.dropna().reset_index(drop=True),
-#     id_col = 'ids',
-#     tid_col = 'tid',
-#     grade_col = 'grade',
-#     y_col = 'y',
-#     eft_it_col = 'effect_it',
-#     eft_jt_col = 'effect_tid_t',
-#     bootstrap=None
-# )
-#
-# #
-# df = pd.read_csv('./test2.csv')
-# sr = SimpleFixedRegression(random_init = True)
+# df = pd.read_csv('./test_saitama.csv')
+# sr = SimpleRegression(random_init = False, tolerance=10**(-2))
 # sr.fit(
 #     df=df.dropna().reset_index(drop=True),
 #     id_col = 'ids',
@@ -97,8 +83,101 @@ class SimpleFixedRegression(BaseEstimator):
 #     bootstrap=None
 # )
 
+# df = pd.read_csv('./test2.csv')
+# sr = SimpleFixedRegression(random_init = False, tolerance=10**(-2))
+# sr.fit(
+#     df=df.dropna().reset_index(drop=True),
+#     id_col = 'ids',
+#     tid_col = 'tid',
+#     grade_col = 'grade',
+#     y_col = 'y',
+#     eft_it_col = 'effect_it',
+#     eft_jt_col = 'effect_tid_t',
+#     bootstrap=None
+# )
 # sr.mo.persistence
 # sr.parameters_dict_bootstraped
+
+#
+# df = (
+#     pd.read_csv('memo/data/toda_kyouin.csv')
+#     .dropna(subset=['mst_id', 'grade_prime', 'year_prime', target])
+#     .dropna(subset=['teacher_id'])
+#     .assign(
+#         iddd=lambda dfx: dfx.year_prime.astype(int).astype(str) + dfx.grade_prime.astype(int).astype(str)
+#     )
+#     .assign(
+#         n_t=lambda dfx: dfx.groupby(['teacher_id'])['iddd'].transform('nunique')
+#     )
+# )
+# df.groupby('teacher_id')['iddd'].nunique().value_counts()
+#
+# import random, string
+# def give_sample_id(dfx):
+#     ids_choice = pd.Series(
+#         pd.np.random.choice(dfx['mst_id'].unique(), size=len(dfx['mst_id'].unique()))
+#     ).value_counts()
+#     dfxx = pd.DataFrame()
+#     for i in range(10000):
+#         ids_extract = ids_choice[ids_choice > i].index
+#         if ids_extract.shape[0] == 0:
+#             break
+#         df_extract = (
+#             dfx.loc[dfx.mst_id.isin(ids_extract), :]
+#             .assign(
+#                 mst_id = lambda dfx: dfx['mst_id'] + ''.join(random.sample(string.ascii_lowercase, k=i))
+#             )
+#         )
+#         dfxx = dfxx.append(df_extract)
+#     return dfxx
+#
+# import pandas as pd
+# target = 'zkokugo_level'
+# df = (
+#     pd.read_csv('memo/data/toda_kyouin.csv')
+#     # .pipe(give_missing_teacher_id)
+#     .pipe(lambda dfx: dfx.loc[dfx['grade_prime'] <= 6, :])
+#     .pipe(lambda dfx: dfx.loc[dfx['grade_prime'] >= 3, :])
+#     .dropna(subset=['mst_id', 'grade_prime', 'year_prime', target])
+#     .dropna(subset=['teacher_id'])
+#     .assign(
+#         iddd=lambda dfx: dfx.year_prime.astype(int).astype(str) + dfx.grade_prime.astype(int).astype(str)
+#     )
+#     .sort_values(['mst_id', 'grade_prime'])
+#     .assign(
+#         n_t = lambda dfx: dfx.groupby(['teacher_id'])['iddd'].transform('nunique')
+#     )
+#     # .pipe(lambda dfx: dfx.loc[dfx['n_t'] >= 2, :])
+#     .pipe(give_sample_id)
+#     # .assign(
+#     #     n=lambda dfx: dfx.groupby(['mst_id'])['mst_id'].transform('size')
+#     # )
+#     # .pipe(lambda dfx: dfx.loc[dfx['n'] >1, :])
+#     [['mst_id', 'year_prime', 'grade_prime', 'teacher_id', target]]
+#     .reset_index(drop=True)
+# )
+# print(
+#     df.groupby(['year_prime', 'grade_prime'])[['zselfefficacy', 'zselfcontrol', 'zdilligence', 'zkokugo_level']].mean())
+# print(df.groupby(['teacher_id'])['iddd'].nunique().mean())
+# tids = df.groupby(['teacher_id'])['iddd'].nunique()
+# tids_included = tids[tids > 1].index
+# # df = df.loc[df['teacher_id'].isin(tids_included)]
+
+# sr = SimpleRegression(random_init=False, max_iteration=5000, tolerance=10**(-3))
+# sr.fit(
+#     df=df,
+#     id_col='mst_id',
+#     tid_col='teacher_id',
+#     grade_col='grade_prime',
+#     y_col=target,
+#     eft_it_col='effect_it',
+#     eft_jt_col='effect_tid_t',
+#     bootstrap=None,
+#     init_sigma=None,
+# )
+# sr.mo.parameters_dict
+# sr.mo.parameters_dict['eft_jt_col'].describe()
+# sr.mo.parameters_dict['eft_it_col'].describe()
 
 # df = pd.read_csv('./tests/data_tmp.csv')
 # df_tmp = (

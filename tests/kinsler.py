@@ -90,9 +90,9 @@ def fixed_taecher():
     # setup test data
     import numpy as np
     import pandas as pd
-    n_id = 5000
-    n_tid = 30
-    n_time = 3
+    n_id = 500
+    n_tid = 5000
+    n_time = 2
     grade_range = list(range(1, 7))
     start_time_range = np.array(grade_range)[np.argsort(grade_range)[0:(len(grade_range) - n_time + 1)]]
     persistence = 0.8

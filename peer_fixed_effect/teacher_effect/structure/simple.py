@@ -62,6 +62,14 @@ class SimpleTeacherEffectMixin(TeacherEffectMixin):
         else:
             cls.df[cls.eft_jt_col] = cls.df[cls.y_col] - cls.df[cls.eft_it_col]
             cls.df[cls.eft_jt_col] = cls.df.groupby([cls.tid_col, cls.grade_col])[cls.eft_jt_col].transform('mean')
+        cls.prime_eft_jt_col = cls.df[cls.eft_jt_col].copy()
+
+    def is_teacher_effect_ijgt_convergence(self, cls, torelance=10**(-5)):
+        if (cls.prime_eft_jt_col - cls.df[cls.eft_jt_col]).abs().max() < torelance:
+            return True
+        else:
+            cls.prime_eft_jt_col = cls.df[cls.eft_jt_col].copy()
+            return False
 
     def estimate_teacher_effect_ijgt(self, cls, **argv):
         return self._estimate_teacher_effect_jg(
@@ -126,6 +134,14 @@ class SimpleIndividualEffectMixin(IndividualEffectMixin):
         else:
             cls.df[cls.eft_it_col] = cls.df[cls.y_col] - cls.df[cls.eft_jt_col]
             cls.df[cls.eft_it_col] = cls.df.groupby([cls.id_col])[cls.eft_it_col].transform('mean')
+        cls.prime_eft_it_col = cls.df[cls.eft_it_col].copy()
+
+    def is_individual_effect_ijgt_convergence(self, cls, torelance=10**(-5)):
+        if (cls.prime_eft_it_col - cls.df[cls.eft_it_col]).abs().max() < torelance:
+            return True
+        else:
+            cls.prime_eft_it_col = cls.df[cls.eft_it_col].copy()
+            return False
 
     def estimate_individual_effect_ijgt(self, cls, **argv):
         return self._estimate_individual_effect_i(
@@ -163,6 +179,17 @@ class SimpleIndividualEffectMixin(IndividualEffectMixin):
 
 
 class SimplePersistenceMixin(PersistenceMixin):
+    def initialize_sigma(self, cls):
+        cls.sigma = 1
+        cls.prime_sigma = cls.sigma
+
+    def is_sigma_convergence(self, cls, torelance=10**(-5)):
+        if abs(cls.prime_sigma - cls.sigma) < torelance:
+            return True
+        else:
+            cls.prime_sigma = cls.sigma
+            return False
+
     def get_residual_given_sigma(
             self,
             sigma, df: pd.DataFrame,
@@ -208,7 +235,9 @@ class SimplePersistenceMixin(PersistenceMixin):
             x0=pd.np.array(sigma_init),
             args=(df, id_col, grade_col,  y_col,  eft_it_col, eft_jt_col,  max_grade_col),
             bounds=([[0, 1]]),
-            tol=ftol
+            tol=ftol,
+            method='SLSQP'
+            # method='tnc'
         )
         return res_1.x[0]
 
